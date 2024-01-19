@@ -1,0 +1,99 @@
+---
+title: "ESM 244 Lab 2 - Time Series"
+author: "Caroline Edmonds"
+format: 
+  html:
+    code-fold: show
+    toc: true
+    number-sections: true
+editor: visual
+execute: 
+  echo: true
+  message: false
+  warning: false
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(tsibble)
+library(feasts)
+library(fable)
+```
+
+# Part 1: Time Series with Toolik Lake Data
+
+## Always look at your data
+
+```{r}
+toolik_df <- read_csv(here('data/toolik_daily.csv'))
+```
+
+```{r}
+#Exploring the data
+toolik_df_gg <- ggplot(toolik_df, aes(x=date, y= daily_air_temp))+
+  geom_line()
+
+toolik_df_gg
+
+
+```
+
+```{r}
+##Convert datafram to time series
+toolik_ts <- toolik_df |>
+  mutate(date = lubridate::mdy(date)) |>
+  as_tsibble(key = NULL, index = date) # key = had multiple sites then use key, #index = time series varibale
+#does not change looks
+
+#Plot to explore
+toolik_df_ts <- ggplot(toolik_ts, aes(x=date, y= daily_air_temp))+
+  geom_line()+
+  labs(x ='Date', y = 'Mean Daily air temp (Celsius)\n at Toolik Station')
+
+toolik_df_ts
+
+# \n makes labels go into another row
+```
+
+## Use filter)index function to filter by date and time
+
+```{r}
+### Filter from December 2010 to January 2011
+#filter can do by station or other stuff just cannot look at time/date
+
+toolik_ts |>
+  filter_index("2010-12" ~ '2011-01')
+
+toolik_ts |>
+  filter_index("2006-04-10" ~ '2006-05-15')  #exact 
+
+toolik_ts |>
+  filter_index("2018-01-01" ~ .)  #go to most present date, if . first then starts at beginning and goes to certain date on other side
+```
+
+## Use index_by() to aggregate time series by increments
+
+```{r}
+toolik_month <- toolik_ts |>
+  index_by(yr_mo = ~ yearmonth(.)) |>
+  summarize(monthly_mean_temp = mean(daily_air_temp, na.rm=TRUE)) |>
+  ungroup()
+#ID things based on year and month
+```
+
+Now let's plot it!
+
+```{r}
+toolik_month_ts <- ggplot(data = toolik_month, aes(x= yr_mo, y = monthly_mean_temp))+
+  geom_line()
+toolik_month_ts
+
+toolik_yr_annual <- ggplot(data = toolik_month, aes(x= year(yr_mo), y = monthly_mean_temp))+
+  geom_line()+
+  facet_wrap(~month(yr_mo))+
+  labs(x = 'Year', y = 'Annual mean air temp (Celsius)', title = 'Toolik Station mean annual air temperature', subtitle = '1988-2023', caption = '<put citation here')
+toolik_yr_annual
+```
+
+# END OF TOOLIK DATA SECTION
